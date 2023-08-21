@@ -27,12 +27,12 @@ annotation layers
 
 import xml.dom.minidom as minidom
 import xml.sax as sax
-from bz2 import BZ2File
+import bz2
 from os.path import basename
 #import wave
 import numpy as np
-from SVDataset import SVDataset2D, SVDataset3D
-from SVContentHandler import SVContentHandler
+from .SVDataset import SVDataset2D, SVDataset3D
+from .SVContentHandler import SVContentHandler
 import scipy.io.wavfile as SW
 import wave
 
@@ -186,7 +186,7 @@ class SVEnv:
         # datasetnode.set_data_from_iterable(map(int, np.array(x) * self.samplerate), y)
         # data = dataset.appendChild(datasetnode)
         dataset = self.data.appendChild(SVDataset2D(self.doc, str(imodel), self.samplerate))
-        dataset.set_data_from_iterable(map(int, np.array(x) * self.samplerate), y)
+        dataset.set_data_from_iterable(list(map(int, np.array(x) * self.samplerate)), y)
         self.nbdata += 2
 
         ###### add layers
@@ -246,7 +246,7 @@ class SVEnv:
         dataset = self.data.appendChild(SVDataset3D(self.doc, str(imodel), self.samplerate))
         if values is None:
             values = ([0] * len(temp_idx))
-        dataset.set_data_from_iterable(map(int, np.array(temp_idx) * self.samplerate), values, map(int, np.array(durations) * self.samplerate), labels)
+        dataset.set_data_from_iterable(list(map(int, np.array(temp_idx) * self.samplerate)), values, list(map(int, np.array(durations) * self.samplerate)), labels)
         
 
         # dataset = self.data.appendChild(self.doc.createElement('dataset'))
@@ -284,10 +284,8 @@ class SVEnv:
         Args:
           outfname(str): full path to the file storing the environment
         """
-        f = BZ2File(outfname, 'w')
-        self.doc.writexml(f, addindent='  ', newl='\n')
-        f.close()     
-
+        with bz2.open(outfname, 'wt') as f:
+            self.doc.writexml(f, addindent='  ', newl='\n')
 
 
     def __namefact(self, name):
@@ -444,7 +442,7 @@ if __name__ == '__main__':
 
     # append a continuous annotation layer corresponding to a sinusoidal signal
     # on the spectrogram view previously defined
-    x = np.array(range(10000, 20000, 5)) / 1000.
+    x = np.array(list(range(10000, 20000, 5))) / 1000.
     sve.add_continuous_annotations(x, 1 + 3 * np.sin(2 * x), view=specview)
     
     # append a labelled interval annotation layer on a new view
