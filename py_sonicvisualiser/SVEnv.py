@@ -31,7 +31,7 @@ import bz2
 from os.path import basename
 #import wave
 import numpy as np
-from .SVDataset import SVDataset2D, SVDataset3D
+from .SVDataset import SVDataset2D, SVDataset3D, SVDatasetMat
 from .SVContentHandler import SVContentHandler
 import scipy.io.wavfile as SW
 import wave
@@ -101,9 +101,10 @@ class SVEnv:
 
     @staticmethod
     def parse(svenvfname):
-        f = BZ2File(svenvfname)
-        svch = SVContentHandler()
-        sax.parse(f, svch)
+        # f = BZ2File(svenvfname)
+        with bz2.open(svenvfname, 'rt') as f:
+            svch = SVContentHandler()
+            sax.parse(f, svch)
         #print svch.dom.toprettyxml()
         
         ret = SVEnv(svch.samplerate, svch.nframes, svch.mediafile)
@@ -276,6 +277,60 @@ class SVEnv:
         #     point.setAttribute('value', str(v))
         return view
 
+    def add_mat(self, mat : np.ndarray, times : np.ndarray, colourName='Purple', colour='#c832ff', name='', view=None, presentationName = None):
+        """
+        add a labelled interval annotation layer
+
+        Args:
+          temp_idx (float iterable): The temporal indices of invervals
+          durations (float iterable): intervals durations
+          labels (string iterable): interval labels
+          values (int iterable): interval numeric values, if set to None, values are set to 0
+
+        Kwargs:
+          view (<DOM Element: view>): environment view used to display the spectrogram, if set to None, a new view is created
+
+        """
+        # <model id="2" name="3dplots_test.csv" sampleRate="44100" start="441000" end="2645999" type="dense" dimensions="3" windowSize="441000" yBinCount="4" minimum="0" maximum="2" dataset="1" startFrame="441000" />
+        model = self.data.appendChild(self.doc.createElement('model'))
+        imodel = self.nbdata
+        minimum = mat.min()
+        maximum = mat.max()
+        times_frames = (times * self.samplerate).astype(int)
+        start = times_frames[0]
+        end = times_frames[-1]
+        window_size = times_frames[1] - times_frames[0]
+        y_bin_count = mat.shape[1]
+        for atname, atval in [('id', imodel + 1),
+                              ('dataset', imodel),
+                              ('name', name),
+                              ('sampleRate', self.samplerate),
+                              ('start', start),
+                              ('end', end),
+                              ('type', 'dense'),
+                              ('dimensions', '3'),
+                              ('windowSize', window_size),
+                              ('yBinCount', y_bin_count),
+                              ('minimum', minimum),
+                              ('maximum', maximum),
+                              ('startFrame', start),
+                              ]:
+            model.setAttribute(atname, str(atval))
+
+        dataset = self.data.appendChild(SVDatasetMat(str(imodel), mat))
+        self.nbdata+= 2
+        
+        # valruler = self.__add_time_ruler()
+        # colour3dplot_layer = self.__add_colour3dplot_layer(imodel + 1, name)
+        colour3dplot_layer = self.__add_colour3dplot_layer(imodel + 1)
+        if presentationName:
+            colour3dplot_layer.setAttribute('presentationName', presentationName)        
+
+        if view is None:
+            view = self.__add_view()
+        # self.__add_layer_reference(view, valruler)
+        self.__add_layer_reference(view, colour3dplot_layer)
+        return view
 
     def save(self, outfname):
         """
@@ -383,7 +438,24 @@ class SVEnv:
         layer.setAttribute('name', modelname + 'Region')
         return layer
 
-
+    def __add_colour3dplot_layer(self, model):
+        # <layer id="4" type="colour3dplot" name="Colour 3D Plot" model="2"  scale="0" minY="0" maxY="0" invertVertical="false" opaque="false" binScale="0" smooth="false" gain="1" colourMap="Green" colourScheme="0" columnNormalization="none" normalizeColumns="false" normalizeVisibleArea="false" />
+        layer = self.__add_layer(model, 'colour3dplot')
+        layer.setAttribute('scale', '0')
+        layer.setAttribute('minY', '0')
+        layer.setAttribute('maxY', '0')
+        layer.setAttribute('invertVertical', 'false')
+        layer.setAttribute('opaque', 'false')
+        layer.setAttribute('binScale', '0')
+        layer.setAttribute('smooth', 'false')
+        layer.setAttribute('gain', '1')
+        layer.setAttribute('colourMap', 'Green')
+        layer.setAttribute('colourScheme', '0')
+        layer.setAttribute('columnNormalization', 'none')
+        layer.setAttribute('normalizeColumns', 'false')
+        layer.setAttribute('normalizeVisibleArea', 'false')
+        layer.setAttribute('name', self.__namefact('Colour 3D Plot'))
+        return layer
 
     def __add_time_ruler(self):
         layer = self.__add_layer(0, 'timeruler')

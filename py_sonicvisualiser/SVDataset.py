@@ -26,6 +26,7 @@ in xml.dom.minidom documents
 
 import xml.dom.minidom
 import collections
+import numpy as np
 
 
 class SVDataset2D(xml.dom.minidom.Text):
@@ -129,3 +130,25 @@ class SVDataset3D(SVDataset2D):
         for l, x, y, d in zip(self.labels, self.frames, self.values, self.durations):
             writer.write('%s<point label="%s" frame="%d" value="%f" duration="%d"/>%s' % (indent2, self.int2label[l], x, y, d, newl))
         writer.write('%s</dataset>%s' % (indent, newl))
+class SVDatasetMat(xml.dom.minidom.Text):
+    def __init__(self, datasetid, mat : np.ndarray) -> None:
+        super().__init__()
+        self.datasetid = datasetid
+        self.dimensions = 3
+        self.data = mat
+    def writexml(self, writer, indent = "", addindent = "", newl = "") -> None:
+        sep = ' '
+        writer.write(f'{indent}<dataset id="{self.datasetid}" dimensions="{self.dimensions}" separator="{sep}">{newl}')
+        for i, row in enumerate(self.data):
+            writer.write(f'{indent}{addindent}<row n="{i}">')
+            for j, col in enumerate(row):
+                writer.write(('' if j == 0 else sep) +f'{col}')
+            writer.write(f'</row>{newl}')
+        writer.write(f'{indent}</dataset>{newl}')
+        # <dataset id="1" dimensions="3" separator=" ">
+        #     <row n="0">1 0 0 0</row>
+        #     <row n="1">0 1 0 0</row>
+        #     <row n="2">0 1 0 0</row>
+        #     <row n="3">0 0 2 0</row>
+        #     <row n="4">0 0 0 2</row>
+        # </dataset>
