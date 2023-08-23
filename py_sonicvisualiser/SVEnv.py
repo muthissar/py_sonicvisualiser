@@ -277,7 +277,7 @@ class SVEnv:
         #     point.setAttribute('value', str(v))
         return view
 
-    def add_mat(self, mat : np.ndarray, times : np.ndarray, colourName='Purple', colour='#c832ff', name='', view=None, presentationName = None):
+    def add_mat(self, mat : np.ndarray, start=0, window_size=None,  colourName='Purple', colour='#c832ff', name='', view=None, presentationName = None):
         """
         add a labelled interval annotation layer
 
@@ -296,10 +296,11 @@ class SVEnv:
         imodel = self.nbdata
         minimum = mat.min()
         maximum = mat.max()
-        times_frames = (times * self.samplerate).astype(int)
-        start = times_frames[0]
-        end = times_frames[-1]
-        window_size = times_frames[1] - times_frames[0]
+        ncols = mat.shape[0]    
+        # NOTE: Potentially numeric error, however sv only allows equally spaced frames?
+        if window_size is None:
+            window_size = (self.nframes - start) // ncols
+        end = start + window_size * ncols
         y_bin_count = mat.shape[1]
         for atname, atval in [('id', imodel + 1),
                               ('dataset', imodel),
